@@ -1,0 +1,80 @@
+#!/bin/bash
+show_menu() {
+	echo
+	cat <<-MENU
+    =====================================
+      Psiphon Client Manager by NDEVXLK
+    =====================================
+    1) Install Psiphon
+    2) Uninstall Psiphon
+    3) Start Psiphon
+    4) Stop Psiphon
+    5) Change Psiphon Region
+    6) Psiphon Status
+    7) Exit
+	MENU
+}
+install_psiphon() {
+    if [ ! -d '/root/psiphon' ]; then
+        sudo mkdir /root/psiphon
+        sudo wget -4 -O /root/psiphon/psiphon 'https://raw.githubusercontent.com/ndevxlk/psiphon-client/main/psiphon'
+        sudo wget -4 -O /root/psiphon/psiphon.config 'https://raw.githubusercontent.com/ndevxlk/psiphon-client/main/psiphon.config'
+        sudo chmod +x /root/psiphon/psiphon
+        sudo apt install screen -y
+    fi
+    echo -e '\nPsiphon client was installed successfully.'
+}
+uninstall_psiphon() {
+    echo
+    read -rp 'Press enter to continue...' _
+    if [ -d '/root/psiphon' ]; then
+        stop_psiphon
+        sudo rm -rf /root/psiphon
+    fi
+    echo -e '\nPsiphon client was uninstalled successfully.'
+}
+start_psiphon() {
+    sudo screen -dmS psiphon /root/psiphon/psiphon -config /root/psiphon/psiphon.config
+    echo -e '\nPsiphon client was started successfully.'
+}
+stop_psiphon() {
+    sudo screen -S psiphon -X quit
+    echo -e '\nPsiphon client was stopped successfully.'
+}
+change_region() {
+    echo -e '\nPsiphon Regions: AT, BE, CA, CH, CZ, DE, DK, ES, FI, FR, GB, IE, IN, IT, JP, NL, NO, PL, RO, RS, SE, SG, US\n'
+    read -p 'Enter Psiphon region name: ' REGION
+    if [[ $REGION =~ ^[A-Z]{2}$ ]]; then
+        sed -i 's/\("EgressRegion"[[:space:]]*:[[:space:]]*"\)[^"]*/\1'"$REGION"'/' /root/psiphon/psiphon.config
+        stop_psiphon
+        start_psiphon
+        echo -e '\nPsiphon region was changed successfully.'
+    else
+        echo -e '\nEntered Psiphon region is invalid.'
+    fi
+}
+psiphon_status() {
+    CURRENT_REGION=$(grep -oP '"EgressRegion"\s*:\s*"\K[^"]+' /root/psiphon/psiphon.config)
+    echo -e "\nCurrent Psiphon Region: $CURRENT_REGION"
+    echo -e '\nPsiphon SOCKS Proxy Port: 1081'
+}
+if [ "$EUID" -ne 0 ]; then
+    echo -e '\nYou must run this script as the root user!\n'
+    exit 1
+fi
+while true; do
+    show_menu
+    read -rp $'\nChoose an option. [1-7]: ' OPTION
+    case "$OPTION" in
+        1) install_psiphon ;;
+        2) uninstall_psiphon ;;
+        3) start_psiphon ;;
+        4) stop_psiphon ;;
+        5) change_region ;;
+        6) psiphon_status ;;
+        7) echo -e '\nBye.\n'; exit 0 ;;
+        *) echo -e '\nInvalid option. Choose 1-7.' ;;
+    esac
+    echo
+    read -rp 'Press enter to continue...' _
+done
